@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.8.0/leaflet.css" />
+  <style>
+    #map {
+        width: auto;
+        height: 900px;
+    }
+
+    .circle-icon {
+        font-size: 24px;
+        opacity: 0.9;
+    }
+  </style>
+</head>
+
+<body>
+<div id="map"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.8.0/leaflet.js"></script>
+    
+<script>
+    // Get the dataset from PSI API
+    var url = "https://api.data.gov.sg/v1/environment/psi";
+    fetch(url)
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+
+        // Check if the API is working or display NIL
+        if (data.api_info.status == "healthy") {
+            // Store region metadata and 24hrs PSI readings
+            let region_metadata = data.region_metadata;
+            let PSI_24hr = data.items[0].readings.psi_twenty_four_hourly;
+
+            console.log(region_metadata);
+            console.log(PSI_24hr);
+
+            // Set the map layout
+            let tiles = new L.tileLayer('https://maps-{s}.onemap.sg/v3/Default/{z}/{x}/{y}.png', {
+                detectRetina: true,
+                maxZoom: 18,
+                minZoom: 11,                
+                //Do not remove this attribution
+                attribution: '<img src="https://www.onemap.gov.sg/docs/maps/images/oneMap64-01.png" style="height:20px;width:20px;"/> OneMap | Map data &copy; contributors, <a href="http://SLA.gov.sg">Singapore Land Authority</a>'
+            });
+
+            // Load the map and set where is the center
+            let map = new L.Map('map', {
+                center: [1.347833, 103.809357], 
+                zoom: 12,
+                maxBounds: L.latLngBounds(L.latLng(1.1, 103.5), L.latLng(1.5, 104.3))
+            }).addLayer(tiles);           
+            
+            // Add Circles to the map
+            region_metadata.forEach((key) => {
+                // console.log(key);
+                
+                // Looping through key-value pair
+                // Reference: https://attacomsian.com/blog/javascript-iterate-objects
+                for (const psi in PSI_24hr) { 
+                    if (key.name == psi) {
+                        console.log("Finally");
+
+                        var circle = L.circleMarker([key.label_location.latitude, key.label_location.longitude], {
+                            color: getColour(PSI_24hr[psi]),
+                            // fillColor: '#f03',
+                            fillOpacity: 0.3,
+                            radius: 30,
+                        }).addTo(map);
+
+                        // Adding text to circle 
+                        // Reference: https://groups.google.com/g/leaflet-js/c/sD_198ZjUPw?pli=1
+                        // https://jsfiddle.net/q0jpLtro/1/                        
+                        var myIcon = L.divIcon({
+                            className: 'circle-icon',
+                            html: PSI_24hr[psi],
+                            iconAnchor: [13, 15]
+                        });
+                         
+                        // you can set .circle-icon styles in CSS
+                        L.marker([key.label_location.latitude, key.label_location.longitude], {
+                            icon: myIcon
+                        }).addTo(map);
+                    }
+                }                
+
+            });
+            
+
+        } else{
+            console.log("Unable to connect to API")
+        }
+
+    });
+
+    /**
+    * Functions defined belows 
+    */  
+
+    // Return color based on PSI values
+    function getColour(psi) {
+        if (psi <= 30) {
+          return "#42FF00"; // green
+        } else if (psi <= 60) {
+          return "#00B6FF"; // blue
+        } else if (psi <= 100) {
+          return "#FFD500"; // yellow
+        } else if (psi <= 200) {
+          return "#FFA200"; // orange
+        } else {
+          return "#F30000"; // red
+        }
+    }
+
+</script>
+
+</body>
+
+</html>
